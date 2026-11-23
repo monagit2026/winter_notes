@@ -1,0 +1,10 @@
+# PRIVATE: answers, rewards, photos. These must never be committed.
+content/*
+!content/doors.example.yaml
+!content/example/
+
+# Test build (contains dev commands, never publish)
+.preview/
+
+__pycache__/
+.DS_Store

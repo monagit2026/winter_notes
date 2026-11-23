@@ -1,0 +1,46 @@
+[
+ {
+  "day": 1,
+  "title": "login.sh",
+  "prompt": "password:",
+  "puzzle": "**SSH session established.** Welcome to LEO-OS.\n\nThe terminal wants a password. The only clue on screen:\n\n```\npassword hint: the day you asked the most important question\nformat: DDMMYYYY\n```",
+  "hints": [
+   "Dots, dashes and spaces don't matter. Only the digits."
+  ],
+  "files": [],
+  "cookies": [],
+  "ready": true
+ },
+ {
+  "day": 2,
+  "title": "caesar.txt",
+  "prompt": "password:",
+  "puzzle": "An intercepted message. Looks like a Caesar cipher with a shift of 9.\n\n```\nBWXFOUJTN\n```",
+  "hints": [
+   "Shift every letter back by 9."
+  ],
+  "files": [],
+  "cookies": [],
+  "ready": true
+ },
+ {
+  "day": 3,
+  "title": "payload.b64",
+  "prompt": "password:",
+  "puzzle": "Somebody left this in the logs. It ends in `=`, which is a good sign.\n\n```\nUEFSSVM=\n```",
+  "hints": [],
+  "files": [],
+  "cookies": [],
+  "ready": true
+ },
+ {
+  "day": 4,
+  "title": "view-source.html",
+  "prompt": "password:",
+  "puzzle": "This door has no puzzle on screen. Real hackers look under the hood.",
+  "hints": [],
+  "files": [],
+  "cookies": [],
+  "ready": true
+ }
+]

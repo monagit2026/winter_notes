@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" data-theme="green">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#050a06">
+<meta name="robots" content="noindex">
+<title>LEO-OS Advent Terminal</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%84%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css?v=6d9f2c93">
+</head>
+<body>
+<!-- psst, hacker: the password is MISTLETOE -->
+<canvas id="snow" aria-hidden="true"></canvas>
+<div class="scanlines" aria-hidden="true"></div>
+<main id="term">
+  <div id="screen" role="log" aria-live="polite"></div>
+  <form id="prompt" autocomplete="off">
+    <label id="ps1" for="cmd"></label>
+    <input id="cmd" type="text" enterkeyhint="go" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="terminal input">
+  </form>
+</main>
+<noscript><p style="color:#39ff6a;font-family:monospace;padding:1rem">LEO-OS needs JavaScript. Enable it, hacker.</p></noscript>
+<script type="module" src="js/app.js?v=6d9f2c93"></script>
+</body>
+</html>
