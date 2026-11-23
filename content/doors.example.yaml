@@ -1,7 +1,6 @@
 # ---------------------------------------------------------------------------
 #  EXAMPLE content file (fake answers!). The real one is content/doors.yaml,
-#  which is private and never committed. Copy this file to start:
-#      cp content/doors.example.yaml content/doors.yaml
+#  which is private and never committed.
 #
 #  Everything is plain text. You never touch code, only this file.
 #
@@ -11,19 +10,41 @@
 #    prompt     what the input line says (default "password:")
 #    puzzle     the puzzle text Leo sees. ``` fenced blocks become copyable code.
 #    hints      optional list, revealed one by one with /hint
-#    public     things that are VISIBLE on purpose (clues for the game):
-#                 html_comment   -> hidden in the page source (view-source puzzle)
-#                 cookies        -> [{name, value}] set when the door is opened
-#                 files          -> files Leo can open/download (put them in content/)
-#                 clue_contains_answer: true  -> tell the leak check "yes, the
-#                                   answer is visible here on purpose"
 #    answer     the secret answer (private, becomes the encryption key).
 #               Several accepted answers: a list.  Case, spaces and punctuation
 #               do not matter ("24.12.2020" == "24122020").
-#               Write TODO while you don't know it yet.
+#               TODO = not known yet.  AUTO = worked out by a generator.
 #    reward     what the door unlocks (encrypted, only appears after solving):
-#                 title, text, physical (a hidden present at home), media (photos,
-#                 audio, video as file paths)
+#                 title, text, physical (a hidden present at home),
+#                 media (photos, audio, video as file paths inside content/)
+#
+#    public     things that are VISIBLE on purpose (clues for the game):
+#      html_comment          hidden in the page source (view-source puzzle)
+#      cookies               [{name, value}] set when the door is opened
+#      files                 files Leo can open/download (put them in content/)
+#      hidden_pages          [{path, title, text}] pages listed in robots.txt
+#      role_gate             {name, start}: cookie/localStorage "role" puzzle
+#      signal                {text, mode: binary|morse}: blinking lamp (+ sound)
+#      guard                 {url, name, intro}: the AI chat (door 19)
+#      generate              files the build creates for you:
+#          - {type: text, name, text}
+#          - {type: wordlist, name, words: [...]}      (answer must be in it)
+#          - {type: morse, name, text}                 (.wav audio)
+#          - {type: log, name, lines, odd_line}        (one odd line hides the answer)
+#          - {type: numbers, name, target, count}      (3 numbers sum to target; answer: AUTO)
+#          - {type: splits, name, event, leo: {...}, lange: {...}}  (answer: AUTO)
+#          - {type: exif_image, name, source, description}  (JPEG with hidden EXIF text)
+#      clue_contains_answer  true = "yes, the answer is visible here on purpose"
+#                            (otherwise the build refuses to publish it)
+#
+#  Shortcuts inside puzzle text (the build encodes them, so you only ever
+#  write the plain answer once, in `answer:`):
+#    @answer   {{caesar 9 @answer}}   {{vigenere KEY @answer}}   {{rot13 text}}
+#    {{reverse text}}   {{revrot13 text}}   {{base64 text}}   {{hex text}}
+#    {{binary text}}   {{morse text}}   {{anagram @answer}}   {{sha256 @answer}}
+#    {{ascii 1 @answer}}
+#
+#  Test everything with:  python3 build.py --serve --fill-todo
 # ---------------------------------------------------------------------------
 
 settings:
@@ -31,6 +52,7 @@ settings:
   year: 2026
   month: 12
   timezone: Europe/Berlin
+  site_path: /winter_notes/
 
 doors:
   - day: 1
@@ -63,7 +85,7 @@ doors:
       An intercepted message. Looks like a Caesar cipher with a shift of 9.
 
       ```
-      BWXFOUJTN
+      {{caesar 9 @answer}}
       ```
     hints:
       - Shift every letter back by 9.
@@ -78,7 +100,7 @@ doors:
       Somebody left this in the logs. It ends in `=`, which is a good sign.
 
       ```
-      UEFSSVM=
+      {{base64 @answer}}
       ```
     answer: PARIS
     reward:
@@ -92,7 +114,7 @@ doors:
     puzzle: |
       This door has no puzzle on screen. Real hackers look under the hood.
     public:
-      html_comment: "psst, hacker: the password is MISTLETOE"
+      html_comment: "psst, hacker: the password is @answer"
       clue_contains_answer: true
     answer: MISTLETOE
     reward:

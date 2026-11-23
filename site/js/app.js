@@ -6,6 +6,7 @@ import { dev } from './clock.js';
 //#END-PREVIEW
 import { rich } from './rich.js';
 import { startSnow } from './snow.js';
+import { mountSignal, initRole, changedRoles, askGuard } from './extras.js';
 
 const $ = (s) => document.querySelector(s);
 const screen = $('#screen');
@@ -218,9 +219,9 @@ function clueNode(f) {
 
 async function showDoor(day) {
   const d = doors.get(day);
-  const mine = view = { name: 'door', day };
+  const mine = view = { name: 'door', day, guard: d.guard || null, roleGate: d.role_gate || null, mode: 'answer', chat: [], tried: new Set() };
+  const solved = progress.solved[day];
   clear();
-  setPrompt(d.prompt, true);
   (d.cookies || []).forEach(setCookie);
 
   const head = el('div', 'dhead');
@@ -234,16 +235,21 @@ async function showDoor(day) {
     d.files.forEach((f) => clues.append(clueNode(f)));
     screen.append(clues);
   }
+  if (d.signal) screen.append(mountSignal(d.signal, () => view === mine));
   const shown = Math.min(progress.hints[day] || 0, d.hints.length);
   for (let i = 0; i < shown; i++) line(`hint ${i + 1}/${d.hints.length}: ${d.hints[i]}`, 'hintline');
 
   const bar = el('div', 'actions');
   bar.append(btn('< back', showHome));
-  const solved = progress.solved[day];
-  if (!solved) bar.append(btn('hint', giveHint));
+  if (!solved) {
+    bar.append(btn('hint', giveHint));
+    if (d.guard) bar.append(btn('enter password', () => setMode('answer')));
+    if (d.role_gate) bar.append(btn('refresh permissions', () => checkRole(mine, d, true)));
+  }
   screen.append(bar);
 
   if (solved) {
+    setPrompt(HOME_PS1, false);
     const st = line('restoring decrypted session ...', 'dim');
     try {
       const payload = await unlockDoor(day, solved);
@@ -257,8 +263,90 @@ async function showDoor(day) {
     line('stored credentials rejected. Please log in again.', 'err');
   }
   if (!d.ready) line('This door is still under construction (no answer set yet).', 'err');
-  line('enter the answer below.  /hint  /back', 'dim');
+
+  if (d.guard) {
+    restoreChat(mine, d);
+    setMode('chat');
+    line('talk to the guard below. /pw <password> or "enter password" to try a password. /hint  /back', 'dim');
+  } else if (d.role_gate) {
+    initRole(d.role_gate);
+    setPrompt('guest@advent:~$', false);
+    line(`current session: role=${d.role_gate.start}. type /refresh after changing something.  /hint  /back`, 'dim');
+    checkRole(mine, d, false);
+    const timer = setInterval(() => {
+      if (view !== mine || view.solved) clearInterval(timer);
+      else checkRole(mine, d, false);
+    }, 1500);
+  } else {
+    setPrompt(d.prompt, true);
+    line('enter the answer below.  /hint  /back', 'dim');
+  }
   focusInput();
+}
+
+// ---- door 16: role gate
+let checking = false;
+async function checkRole(mine, d, manual) {
+  if (view !== mine || view.solved || checking) return;
+  const roles = changedRoles(d.role_gate);
+  if (manual && !roles.length) line(`permissions unchanged: role=${d.role_gate.start}`, 'dim');
+  for (const role of roles) {
+    if (view.tried.has(role) && !manual) continue;
+    view.tried.add(role);
+    checking = true;
+    try {
+      const payload = await unlockDoor(d.day, role);
+      if (view !== mine) return;
+      if (payload) { await grant(d.day, role, payload); return; }
+      line(`role=${role}: not authorised. (the server is not impressed)`, 'err');
+    } catch { line('connection error. Check your internet and try again.', 'err'); }
+    finally { checking = false; }
+  }
+}
+
+// ---- door 19: guard chat
+function setMode(mode) {
+  if (!view.guard || view.solved) return;
+  view.mode = mode;
+  const d = doors.get(view.day);
+  setPrompt(mode === 'chat' ? 'you>' : d.prompt, true);
+  if (mode === 'answer') line('type the password. /chat goes back to the guard.', 'dim');
+  focusInput();
+}
+
+const chatKey = (day) => `leo-advent-chat-${day}`;
+function restoreChat(mine, d) {
+  try { mine.chat = JSON.parse(sessionStorage.getItem(chatKey(d.day)) || '[]'); } catch { mine.chat = []; }
+  if (!mine.chat.length) { if (d.guard.intro) line(`${d.guard.name}: ${d.guard.intro}`, 'accent'); return; }
+  mine.chat.forEach((m) => line(m.role === 'user' ? `you> ${m.content}` : `${d.guard.name}: ${m.content}`, m.role === 'user' ? 'echo' : 'accent'));
+}
+
+async function chat(text) {
+  const mine = view;
+  const d = doors.get(view.day);
+  if (text.length > 300) return line('message too long (300 characters max). The elf has no patience.', 'err');
+  if (!d.guard.url) return line('the guard is not connected yet.', 'err');
+  line(`you> ${text}`, 'echo');
+  busy = true; input.readOnly = true;
+  const wait = line(`${d.guard.name} is typing ...`, 'dim');
+  try {
+    mine.chat.push({ role: 'user', content: text });
+    const reply = await askGuard(d.guard.url, mine.chat.slice(-40));
+    wait.remove();
+    if (view !== mine) return;
+    mine.chat.push({ role: 'assistant', content: reply });
+    try { sessionStorage.setItem(chatKey(d.day), JSON.stringify(mine.chat.slice(-40))); } catch { /* ignore */ }
+    line(`${d.guard.name}: ${reply}`, 'accent');
+  } catch (e) {
+    wait.remove();
+    mine.chat.pop();
+    line(e.message === 'rate'
+      ? 'Too many messages! The elf needs a breather. Try again in a few minutes.'
+      : 'The elf is on a coffee break (connection error). Try again in a moment.', 'err');
+  } finally {
+    busy = false; input.readOnly = false;
+    focusInput();
+  }
 }
 
 function giveHint() {
@@ -285,6 +373,19 @@ const WRONG = [
 ];
 let lastWrong = '';
 
+async function grant(day, text, payload) {
+  const mine = view;
+  line(`deriving key (PBKDF2-SHA256 x ${payload.iter.toLocaleString('en-US')}) ... ok`, 'dim');
+  await sleep(reduceMotion ? 0 : 350);
+  line('unwrapping content key ... ok', 'dim');
+  await sleep(reduceMotion ? 0 : 300);
+  line('decrypting payload (AES-256-GCM) ... ok', 'dim');
+  await sleep(reduceMotion ? 0 : 400);
+  progress.solved[day] = normalize(text); save();
+  if (view !== mine) return;
+  renderReward(payload);
+}
+
 async function submitAnswer(text) {
   const day = view.day;
   const d = doors.get(day);
@@ -299,18 +400,10 @@ async function submitAnswer(text) {
       lastWrong = pick(WRONG, lastWrong);
       line(lastWrong, 'err');
       form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake');
+      if (view.guard) setMode('chat');
       return;
     }
-    const mine = view;
-    line(`deriving key (PBKDF2-SHA256 x ${payload.iter.toLocaleString('en-US')}) ... ok`, 'dim');
-    await sleep(reduceMotion ? 0 : 350);
-    line('unwrapping content key ... ok', 'dim');
-    await sleep(reduceMotion ? 0 : 300);
-    line('decrypting payload (AES-256-GCM) ... ok', 'dim');
-    await sleep(reduceMotion ? 0 : 400);
-    progress.solved[day] = normalize(text); save();
-    if (view !== mine) return;
-    renderReward(payload);
+    await grant(day, text, payload);
   } catch {
     st.remove();
     line('connection error. Check your internet and try again.', 'err');
@@ -358,6 +451,7 @@ const HELP = [
   'boot               replay the boot sequence',
   'clear              clear the screen',
   'In a door: type the answer. /hint for a hint, /back to leave.',
+  'With the guard: just chat. /pw <password> tries a password.',
 ];
 
 async function command(text) {
@@ -377,6 +471,13 @@ async function command(text) {
       return openDoor(n);
     }
     case 'hint': return giveHint();
+    case 'pw': case 'password': case 'unlock':
+      if (view.name !== 'door' || view.solved) return line('open a door first.', 'err');
+      if (args.length) return submitAnswer(args.join(' '));
+      return view.guard ? setMode('answer') : line('just type the answer.', 'dim');
+    case 'chat': return view.guard && !view.solved ? setMode('chat') : line('nobody to chat with here.', 'dim');
+    case 'refresh':
+      return view.roleGate && !view.solved ? checkRole(view, doors.get(view.day), true) : line('nothing to refresh here.', 'dim');
     case 'help': case '?': HELP.forEach((h) => line(h, 'dim')); return;
     case 'clear': return view.name === 'door' ? showDoor(view.day) : showHome();
     case 'status': {
@@ -413,6 +514,8 @@ async function handle(raw) {
   if (!text || busy) return;
   if (view.name === 'door' && !view.solved) {
     if (text.startsWith('/')) return command(text.slice(1));
+    if (view.roleGate) { line(`${ps1.textContent} ${text}`, 'echo'); return command(text); }
+    if (view.guard && view.mode === 'chat') return chat(text);
     return submitAnswer(text);
   }
   line(`${HOME_PS1} ${text}`, 'echo');

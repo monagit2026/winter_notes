@@ -134,3 +134,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; }
 }
+
+/* --- signal lamp (door 21) --- */
+.signal { display: flex; align-items: center; gap: 1rem; margin: 0.4rem 0 1rem; }
+.lamp { width: 56px; height: 56px; border-radius: 50%; border: 2px solid var(--dim); background: transparent; transition: background 0.04s; }
+.lamp.on { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 28px var(--accent); }
+.soundopt { color: var(--dim); font-size: 0.85rem; cursor: pointer; }

@@ -8,3 +8,6 @@ content/*
 
 __pycache__/
 .DS_Store
+
+# Door 19 guard: its secret prompt and code stay on this computer
+worker/
